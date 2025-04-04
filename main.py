@@ -28,12 +28,10 @@ if DB_TYPE == "oracle":
 
 elif DB_TYPE == "sqlserver":
     server = os.getenv("DB_SERVER")
-    database = os.getenv("DB_DATABASE")
     driver = os.getenv("DB_DRIVER", "{ODBC Driver 17 for SQL Server}")
 
 elif DB_TYPE == "postgres":
     host = os.getenv("DB_SERVER")
-    database = os.getenv("DB_DATABASE")
     port = os.getenv("DB_PORT", "5432")
 
 else:
@@ -42,12 +40,8 @@ else:
 resume = [
     ("Database type", DB_TYPE),
     ("Database user", username),
-    (
-        "Database password",
-        password if os.getenv("LOG_LEVEL", "INFO") == "DEBUG" else "*************",
-    ),
+    ("Database password", password if os.getenv("LOG_LEVEL", "INFO") == "DEBUG" else "*************"),
     ("Database host", os.getenv("DB_SERVER", "N/A")),
-    ("Database name", database if DB_TYPE != "oracle" else dsn),
     ("Log level", os.getenv("LOG_LEVEL", "INFO")),
     ("Start time", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
 ]
@@ -66,20 +60,6 @@ queries = load_queries()
 
 @app.route("/queries", methods=["GET"])
 def list_queries():
-    """
-    List all available queries.
-    ---
-    responses:
-      200:
-        description: A list of available queries
-        schema:
-          type: object
-          properties:
-            available_queries:
-              type: array
-              items:
-                type: string
-    """
     query_names = list(queries.get("sqlgd", {}).keys())
     return jsonify({"available_queries": query_names})
 
@@ -101,14 +81,14 @@ def home():
     )
 
 
-def execute_oracle_query(query):
-    with oracledb.connect(user=username, password=password, dsn=dsn) as connection:
+def execute_oracle_query(query, database):
+    with oracledb.connect(user=username, password=password, dsn=database) as connection:
         with connection.cursor() as cursor:
             cursor.execute(query)
             return cursor.fetchall()
 
 
-def execute_sqlserver_query(query):
+def execute_sqlserver_query(query, database):
     conn_str = f"DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password}"
     with pyodbc.connect(conn_str) as connection:
         with connection.cursor() as cursor:
@@ -116,7 +96,7 @@ def execute_sqlserver_query(query):
             return cursor.fetchall()
 
 
-def execute_postgres_query(query):
+def execute_postgres_query(query, database):
     with psycopg2.connect(
         host=host, database=database, user=username, password=password, port=port
     ) as connection:
@@ -125,12 +105,17 @@ def execute_postgres_query(query):
             return cursor.fetchall()
 
 
-@app.route("/query/<string:query_name>", methods=["GET"])
-def execute_query(query_name):
+@app.route("/query/<string:database>/<string:query_name>", methods=["GET"])
+def execute_query(database, query_name):
     """
-    Execute a query by name.
+    Execute a query by name for a specific database.
     ---
     parameters:
+      - name: database
+        in: path
+        type: string
+        required: true
+        description: The database to execute the query on.
       - name: query_name
         in: path
         type: string
@@ -155,7 +140,7 @@ def execute_query(query_name):
       500:
         description: Error executing query
     """
-    logging.info(f"Querying {query_name}")
+    logging.info(f"Querying {query_name} on database {database}")
     query_group = queries.get("sqlgd", {})
     if query_name not in query_group:
         message = f"Query '{query_name}' not found in YAML file."
@@ -166,18 +151,18 @@ def execute_query(query_name):
 
     try:
         if DB_TYPE == "oracle":
-            results = execute_oracle_query(query)
+            results = execute_oracle_query(query, database)
         elif DB_TYPE == "sqlserver":
-            results = execute_sqlserver_query(query)
+            results = execute_sqlserver_query(query, database)
         elif DB_TYPE == "postgres":
-            results = execute_postgres_query(query)
+            results = execute_postgres_query(query, database)
         else:
             abort(500, description="Unsupported database type.")
 
         return jsonify({"query": query, "results": [list(row) for row in results]})
 
     except Exception as e:
-        logging.error(f"error: {str(e)} Querying {query_name}")
+        logging.error(f"error: {str(e)} Querying {query_name} on {database}")
         return jsonify({"error": str(e)}), 500
 
 
