@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-grafana-dp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql-grafana
+  template:
+    metadata:
+      labels:
+        app: sql-grafana
+    spec:
+      containers:
+        - name: sql-grafana
+          image: aleixolucas/sql-grafana-datasource
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DB_TYPE
+              value: "**********"
+            - name: DB_USERNAME
+              value: "**********"
+            - name: DB_PASSWORD
+              value: "**********"
+            - name: DB_SERVER
+              value: "**********"
+            - name: DB_DATABASE
+              value: "**********"
+          volumeMounts:
+            - name: queries-volume
+              mountPath: /app/queries.yaml
+              subPath: queries.yaml
+      volumes:
+        - name: queries-volume
+          configMap:
+            name: sql-grafana-config

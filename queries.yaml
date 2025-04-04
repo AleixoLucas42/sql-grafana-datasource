@@ -1,0 +1,12 @@
+sqlgd:
+  database_version:
+    - SELECT banner FROM $version WHERE banner LIKE 'Oracle%'
+  select_100_tblog_sql:
+    - |
+      SELECT * 
+      FROM tbLOG 
+      ORDER BY LOG_DH DESC
+      OFFSET 0 ROWS FETCH NEXT 100 ROWS ONLY;
+  select_100_tblog_postgres:
+    - |
+      SELECT * FROM tbLOG ORDER BY LOG_DH DESC LIMIT 100;
