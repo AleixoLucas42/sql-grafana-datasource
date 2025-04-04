@@ -1,4 +1,4 @@
-## Oracle Grafana Datasource
+## SQL Grafana Datasource
 
 This is an simple SQL query exporter developed to be used with an Grafana plugin wich allow us to get http rest responses,
 for example [`Infinity`](https://grafana.com/grafana/plugins/yesoreyeram-infinity-datasource/) datasource plugin.
